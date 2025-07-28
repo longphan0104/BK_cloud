@@ -14,7 +14,7 @@ Theo như hướng dẫn từ 1 đến 4 trỏ đến thư mục đã cài 2 ph�
 
 Bước 4: Khởi động app trong phần "src" bằng cách chạy file login.py. Người dùng cần phải thay đổi URL trong phần "Help" tại trang Login tùy theo cài đặt của người dùng ở bước 1.
 
-* Trong phần Help của trang Login, người dùng có thể xem "User manual để hiểu rõ hơn về app".
+* Trong phần Help của trang Login, người dùng có thể xem "User manual" để hiểu rõ hơn về app.
 
 * Người dùng có thể build app thành 1 file duy nhất bằng cách:
 
