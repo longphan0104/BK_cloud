@@ -20,3 +20,51 @@ Bước 4: Khởi động app trong phần "src" bằng cách chạy file login.
 
 pyinstaller --onefile --noconsole --add-data "photos;photos" --name BKcloud --icon=photos/applogo.ico login.py
 
+# BK Cloud Architecture
+
+```mermaid
+flowchart TD
+    subgraph Start["Khởi chạy ứng dụng"]
+        LWin[LoginWindow (login.py)]
+    end
+
+    LWin -->|Nhập user/pass/project| Auth[OpenStack Swift Auth API]
+    Auth -->|Thành công| SaveUser[secure_json.py<br/>Lưu user vào saved_users.json]
+    Auth -->|Thất bại| ErrorMsg["Hiển thị thông báo lỗi"]
+
+    SaveUser --> MainWin[MainWindow (main.py)]
+
+    subgraph MainWin["MainWindow giao diện chính"]
+        Sidebar["Sidebar: Help, Logout, Switch User"]
+        Tabs[TabWidget: Dashboard - MyFile - Backup - DICOM]
+        Charts["Dashboard: PieChart + LineChart"]
+        MyFile["MyFile: Upload / Download / Delete / Drag-Drop"]
+        Backup["Backup: Đặt lịch backup, backup ngay"]
+        DICOM["DICOM Bridge: Lấy study từ Orthanc, upload lên Swift"]
+    end
+
+    MainWin --> Sidebar
+    Sidebar --> HelpDlg[Help Dialog]
+    HelpDlg -->|User manual| ManualWin[Manual Window (manual.py)]
+    HelpDlg -->|Change Swift URL| ChangeURL[Nhập URL Swift mới]
+    HelpDlg -->|Change password| ChangePW[Đổi mật khẩu User hiện tại]
+
+    MainWin --> Charts
+    MainWin --> MyFile
+    MyFile -->|Upload/Download/Delete| SwiftObj["Object Storage API"]
+
+    MainWin --> Backup
+    Backup -->|Chạy backup theo lịch| LocalFS["File System"]
+    Backup --> SwiftObj
+
+    MainWin --> DICOM
+    DICOM -->|Fetch Studies| Orthanc["DICOM Orthanc Server"]
+    DICOM -->|Upload study| SwiftObj
+
+    subgraph Mount["Mount Manager (mount_manager.py)"]
+        MountDrive["mount_drive(): gọi rclone"]
+        UnmountDrive["unmount_drive(): dừng rclone"]
+    end
+
+    SaveUser --> MountDrive
+    Sidebar -->|Logout| UnmountDrive
