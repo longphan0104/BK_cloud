@@ -24,47 +24,48 @@ pyinstaller --onefile --noconsole --add-data "photos;photos" --name BKcloud --ic
 
 ```mermaid
 flowchart TD
-    subgraph Start [Khởi chạy ứng dụng]
-        LWin[LoginWindow (login.py)]
+    subgraph Start
+        LWin[LoginWindow - login.py]
     end
 
     LWin -->|Nhập user/pass/project| Auth[OpenStack Swift Auth API]
-    Auth -->|Thành công| SaveUser[secure_json.py<br/>Lưu user vào saved_users.json]
-    Auth -->|Thất bại| ErrorMsg[Hiển thị thông báo lỗi]
+    Auth -->|Thành công| SaveUser[secure_json.py<br/>Luu user vao saved_users.json]
+    Auth -->|Thất bại| ErrorMsg[Hien thi thong bao loi]
 
-    SaveUser --> MainWin[MainWindow (main.py)]
+    SaveUser --> MainWin[MainWindow - main.py]
 
-    subgraph MainWin [MainWindow giao diện chính]
+    subgraph MainWin [MainWindow giao dien chinh]
         Sidebar[Sidebar: Help, Logout, Switch User]
         Tabs[TabWidget: Dashboard - MyFile - Backup - DICOM]
         Charts[Dashboard: PieChart + LineChart]
         MyFile[MyFile: Upload / Download / Delete / Drag-Drop]
-        Backup[Backup: Đặt lịch backup, backup ngay]
-        DICOM[DICOM Bridge: Lấy study từ Orthanc, upload lên Swift]
+        Backup[Backup: Dat lich backup, backup ngay]
+        DICOM[DICOM Bridge: Lay study tu Orthanc, upload len Swift]
     end
 
     MainWin --> Sidebar
     Sidebar --> HelpDlg[Help Dialog]
-    HelpDlg -->|User manual| ManualWin[Manual Window (manual.py)]
-    HelpDlg -->|Change Swift URL| ChangeURL[Nhập URL Swift mới]
-    HelpDlg -->|Change password| ChangePW[Đổi mật khẩu User hiện tại]
+    HelpDlg -->|User manual| ManualWin[Manual Window - manual.py]
+    HelpDlg -->|Change Swift URL| ChangeURL[Nhap URL Swift moi]
+    HelpDlg -->|Change password| ChangePW[Doi mat khau User hien tai]
 
     MainWin --> Charts
     MainWin --> MyFile
     MyFile -->|Upload/Download/Delete| SwiftObj[Object Storage API]
 
     MainWin --> Backup
-    Backup -->|Chạy backup theo lịch| LocalFS[File System]
+    Backup -->|Chay backup theo lich| LocalFS[File System]
     Backup --> SwiftObj
 
     MainWin --> DICOM
     DICOM -->|Fetch Studies| Orthanc[DICOM Orthanc Server]
     DICOM -->|Upload study| SwiftObj
 
-    subgraph Mount [Mount Manager (mount_manager.py)]
-        MountDrive[mount_drive(): gọi rclone]
-        UnmountDrive[unmount_drive(): dừng rclone]
+    subgraph Mount [Mount Manager - mount_manager.py]
+        MountDrive[mount_drive: goi rclone]
+        UnmountDrive[unmount_drive: dung rclone]
     end
 
     SaveUser --> MountDrive
     Sidebar -->|Logout| UnmountDrive
+```
