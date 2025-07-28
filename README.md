@@ -24,23 +24,23 @@ pyinstaller --onefile --noconsole --add-data "photos;photos" --name BKcloud --ic
 
 ```mermaid
 flowchart TD
-    subgraph Start["Khởi chạy ứng dụng"]
+    subgraph Start [Khởi chạy ứng dụng]
         LWin[LoginWindow (login.py)]
     end
 
     LWin -->|Nhập user/pass/project| Auth[OpenStack Swift Auth API]
     Auth -->|Thành công| SaveUser[secure_json.py<br/>Lưu user vào saved_users.json]
-    Auth -->|Thất bại| ErrorMsg["Hiển thị thông báo lỗi"]
+    Auth -->|Thất bại| ErrorMsg[Hiển thị thông báo lỗi]
 
     SaveUser --> MainWin[MainWindow (main.py)]
 
-    subgraph MainWin["MainWindow giao diện chính"]
-        Sidebar["Sidebar: Help, Logout, Switch User"]
+    subgraph MainWin [MainWindow giao diện chính]
+        Sidebar[Sidebar: Help, Logout, Switch User]
         Tabs[TabWidget: Dashboard - MyFile - Backup - DICOM]
-        Charts["Dashboard: PieChart + LineChart"]
-        MyFile["MyFile: Upload / Download / Delete / Drag-Drop"]
-        Backup["Backup: Đặt lịch backup, backup ngay"]
-        DICOM["DICOM Bridge: Lấy study từ Orthanc, upload lên Swift"]
+        Charts[Dashboard: PieChart + LineChart]
+        MyFile[MyFile: Upload / Download / Delete / Drag-Drop]
+        Backup[Backup: Đặt lịch backup, backup ngay]
+        DICOM[DICOM Bridge: Lấy study từ Orthanc, upload lên Swift]
     end
 
     MainWin --> Sidebar
@@ -51,19 +51,19 @@ flowchart TD
 
     MainWin --> Charts
     MainWin --> MyFile
-    MyFile -->|Upload/Download/Delete| SwiftObj["Object Storage API"]
+    MyFile -->|Upload/Download/Delete| SwiftObj[Object Storage API]
 
     MainWin --> Backup
-    Backup -->|Chạy backup theo lịch| LocalFS["File System"]
+    Backup -->|Chạy backup theo lịch| LocalFS[File System]
     Backup --> SwiftObj
 
     MainWin --> DICOM
-    DICOM -->|Fetch Studies| Orthanc["DICOM Orthanc Server"]
+    DICOM -->|Fetch Studies| Orthanc[DICOM Orthanc Server]
     DICOM -->|Upload study| SwiftObj
 
-    subgraph Mount["Mount Manager (mount_manager.py)"]
-        MountDrive["mount_drive(): gọi rclone"]
-        UnmountDrive["unmount_drive(): dừng rclone"]
+    subgraph Mount [Mount Manager (mount_manager.py)]
+        MountDrive[mount_drive(): gọi rclone]
+        UnmountDrive[unmount_drive(): dừng rclone]
     end
 
     SaveUser --> MountDrive
