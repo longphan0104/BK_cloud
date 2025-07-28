@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QComboBox, QListWidgetItem, QAction, QStackedWidget, QFrame, QTextEdit, QMainWindow, QTabWidget, QDialog,
     QDialogButtonBox, QRadioButton, QSpacerItem, QGroupBox, QFormLayout
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QRunnable, QThreadPool, QObject, pyqtSlot, QTimer
+from PyQt5.QtCore import Qt, pyqtSignal, QRunnable, QThreadPool, QObject, pyqtSlot, QTimer, QEvent
 from PyQt5.QtGui import QIcon, QDropEvent, QPixmap, QPalette, QBrush
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -1039,27 +1039,45 @@ class MainWindow(QWidget):
 
         def on_accept():
             if user_manual_radio.isChecked():
-                manual_dialog = QDialog(self)
-                manual_dialog.setMinimumSize(1280, 720)
-                manual_dialog.setWindowTitle("User Manual")
-                manual_dialog.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint)
-                manual_layout = QVBoxLayout(manual_dialog)
+                self.manual_dialog = QDialog()
+                self.manual_dialog.setMinimumSize(1280, 720)
+                self.manual_dialog.setWindowTitle("User Manual")
+                self.manual_dialog.setWindowFlags(
+                    Qt.Window
+                    | Qt.WindowCloseButtonHint
+                    | Qt.WindowMinimizeButtonHint
+                    | Qt.WindowMaximizeButtonHint
+                )
+                self.manual_dialog.setAttribute(Qt.WA_DeleteOnClose)
+
+                icon_path = resource_path(os.path.join("photos", "logo.ico"))
+                if os.path.exists(icon_path):
+                    self.manual_dialog.setWindowIcon(QIcon(icon_path))
+
+                manual_layout = QVBoxLayout(self.manual_dialog)
 
                 text = QTextEdit()
                 text.setReadOnly(True)
                 text.setHtml(manual.get_help_text())
                 manual_layout.addWidget(text)
 
-                close_btn = QDialogButtonBox(QDialogButtonBox.Ok)
-                close_btn.accepted.connect(manual_dialog.accept)
-                manual_layout.addWidget(close_btn)
+                button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+                button_box.accepted.connect(self.manual_dialog.close)
+                manual_layout.addWidget(button_box)
 
-                manual_dialog.exec_()
+                def handle_change(event):
+                    if event.type() == QEvent.WindowStateChange:
+                        if self.manual_dialog.windowState() & Qt.WindowMaximized:
+                            self.manual_dialog.showFullScreen()
+                    return QDialog.changeEvent(self.manual_dialog, event)
+
+                self.manual_dialog.changeEvent = handle_change
+
+                self.manual_dialog.show()
 
             elif change_dicom_radio.isChecked():
                 current_url = self.get_dicom_url()
-                new_url, ok = QInputDialog.getText(self, "Change DICOMweb URL", "Enter new DICOMweb URL:",
-                                                   QLineEdit.Normal, current_url)
+                new_url, ok = QInputDialog.getText(self, "Change DICOMweb URL", "Enter new DICOMweb URL:", QLineEdit.Normal, current_url)
                 if ok and new_url.strip():
                     self.set_dicom_url(new_url.strip())
                     QMessageBox.information(self, "Success", "DICOM URL has been updated.")

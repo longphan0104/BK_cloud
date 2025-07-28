@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QDialogButtonBox, QRadioButton
 )
 from PyQt5.QtGui import QFont, QPixmap, QPalette, QBrush, QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QEvent
 
 from main import MainWindow
 from mount_manager import mount_drive
@@ -377,10 +377,22 @@ class LoginWindow(QWidget):
 
         def on_accept():
             if manual_radio.isChecked():
-                manual_dialog = QDialog(self)
-                manual_dialog.setMinimumSize(1280, 720)
-                manual_dialog.setWindowTitle("User Manual")
-                manual_layout = QVBoxLayout(manual_dialog)
+                self.manual_dialog = QDialog()
+                self.manual_dialog.setMinimumSize(1280, 720)
+                self.manual_dialog.setWindowTitle("User Manual")
+                self.manual_dialog.setWindowFlags(
+                    Qt.Window
+                    | Qt.WindowCloseButtonHint
+                    | Qt.WindowMinimizeButtonHint
+                    | Qt.WindowMaximizeButtonHint
+                )
+                self.manual_dialog.setAttribute(Qt.WA_DeleteOnClose)
+
+                icon_path = resource_path(os.path.join("photos", "logo.ico"))
+                if os.path.exists(icon_path):
+                    self.manual_dialog.setWindowIcon(QIcon(icon_path))
+
+                manual_layout = QVBoxLayout(self.manual_dialog)
 
                 text = QTextEdit()
                 text.setReadOnly(True)
@@ -388,10 +400,20 @@ class LoginWindow(QWidget):
                 manual_layout.addWidget(text)
 
                 close_btn = QDialogButtonBox(QDialogButtonBox.Ok)
-                close_btn.accepted.connect(manual_dialog.accept)
+                close_btn.accepted.connect(self.manual_dialog.close)
                 manual_layout.addWidget(close_btn)
 
-                manual_dialog.exec_()
+                def handle_change(event):
+                    if event.type() == QEvent.WindowStateChange:
+                        if self.manual_dialog.windowState() & Qt.WindowMaximized:
+                            self.manual_dialog.showFullScreen()
+                    return QDialog.changeEvent(self.manual_dialog, event)
+
+                self.manual_dialog.changeEvent = handle_change
+
+                self.manual_dialog.show()
+                self.manual_dialog.raise_()
+                self.manual_dialog.activateWindow()
 
             elif change_url_radio.isChecked():
                 self.show_change_url_dialog()
@@ -402,7 +424,6 @@ class LoginWindow(QWidget):
         button_box.rejected.connect(dialog.reject)
 
         dialog.exec_()
-
 
 if __name__ == "__main__":
     import sys
