@@ -2027,20 +2027,28 @@ class MainWindow(QWidget):
                 return
 
             try:
-                headers = {
+                headers = {"X-Auth-Token": self.token}
+
+                # Kiểm tra xem container đã tồn tại chưa
+                check_url = f"{self.storage_url}/{name}"
+                check_resp = requests.head(check_url, headers=headers)
+                if check_resp.status_code == 204:  # Container exists
+                    QMessageBox.warning(self, "Failure", f"Folder '{name}' already exists")
+                    return
+
+                # Nếu chưa có thì tạo mới
+                create_headers = {
                     "X-Auth-Token": self.token,
                     "Content-Length": "0"
                 }
-                url = f"{self.storage_url}/{name}"
-                response = requests.put(url, headers=headers)
+                create_resp = requests.put(check_url, headers=create_headers)
 
-                if response.status_code in [201, 202]:
+                if create_resp.status_code == 201:
                     QMessageBox.information(self, "Success", f"Folder '{name}' has been created")
                     self.list_containers()
-                elif response.status_code == 409:
-                    QMessageBox.warning(self, "Failure", f"Folder '{name}' already exists")
                 else:
-                    QMessageBox.warning(self, "Failure", f"Unable to create folder\nHTTP {response.status_code}")
+                    QMessageBox.warning(self, "Failure", f"Unable to create folder\nHTTP {create_resp.status_code}")
+
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Connection error: {str(e)}")
 
@@ -2180,7 +2188,63 @@ class MainWindow(QWidget):
 
         #Xử lý file
 
-#Xử lý file
+    def rename_container(self, old_container_name):
+        new_name, ok = QInputDialog.getText(self, "Rename folder", "Enter new folder name:")
+        if not ok or not new_name or new_name.strip() == old_container_name:
+            return
+
+        new_name = new_name.strip()
+
+        # Chặn tên thư mục hệ thống
+        reserved_names = ["backup", "dicom"]
+        if new_name.lower() in reserved_names:
+            QMessageBox.warning(self, "Invalid name", "This name cannot be used. It is a system folder.")
+            return
+
+        try:
+            headers = {"X-Auth-Token": self.token}
+
+            # Kiểm tra xem container mới đã tồn tại chưa
+            check_url = f"{self.storage_url}/{quote(new_name)}"
+            check_resp = requests.head(check_url, headers=headers)
+            if check_resp.status_code == 204:  # Container đã tồn tại
+                QMessageBox.warning(self, "Failure", f"Folder '{new_name}' already exists")
+                return
+
+            # Tạo container mới
+            create_resp = requests.put(check_url, headers=headers)
+            if create_resp.status_code not in (201, 202):
+                raise Exception("Unable to create new folder")
+
+            # Lấy danh sách object từ container cũ
+            list_url = f"{self.storage_url}/{quote(old_container_name)}?format=json"
+            list_resp = requests.get(list_url, headers=headers)
+            if list_resp.status_code != 200:
+                raise Exception("Unable to retrieve file list from the old folder")
+            objects = list_resp.json()
+
+            # Copy từng object sang folder mới
+            for obj in objects:
+                object_name = obj["name"]
+                copy_url = f"{self.storage_url}/{quote(new_name)}/{quote(object_name)}"
+                headers_copy = {
+                    "X-Auth-Token": self.token,
+                    "X-Copy-From": f"/{quote(old_container_name)}/{quote(object_name)}"
+                }
+                copy_resp = requests.put(copy_url, headers=headers_copy)
+                if copy_resp.status_code not in (201, 202):
+                    raise Exception(f"Unable to copy object: {object_name}")
+
+            # Xóa container cũ (gồm cả object)
+            self.delete_container_with_objects(old_container_name)
+
+            QMessageBox.information(self, "Success", "Folder renamed successfully")
+            self.list_containers()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
+
+    #Xử lý file
     def create_search_box(self, placeholder_text, clear_callback=None):
         search_box = QLineEdit()
         search_box.setPlaceholderText(placeholder_text)
@@ -2657,49 +2721,6 @@ class MainWindow(QWidget):
         worker.signals.error.connect(lambda msg: QMessageBox.warning(self, "Delete error", msg))
         self.threadpool.start(worker)
 
-    def rename_container(self, old_container_name):
-        new_name, ok = QInputDialog.getText(self, "Rename folder", "Enter new folder name:")
-        if not ok or not new_name or new_name.strip() == old_container_name:
-            return
-
-        new_name = new_name.strip()
-
-        try:
-            # Tạo container mới
-            create_url = f"{self.storage_url}/{quote(new_name)}"
-            headers = {"X-Auth-Token": self.token}
-            create_resp = requests.put(create_url, headers=headers)
-            if create_resp.status_code not in (201, 202):
-                raise Exception("Unable to create new folder")
-
-            # Lấy danh sách object từ container cũ
-            list_url = f"{self.storage_url}/{quote(old_container_name)}?format=json"
-            list_resp = requests.get(list_url, headers=headers)
-            if list_resp.status_code != 200:
-                raise Exception("Unable to retrieve file list from the old folder")
-            objects = list_resp.json()
-
-            # Copy từng object
-            for obj in objects:
-                object_name = obj["name"]
-                copy_url = f"{self.storage_url}/{quote(new_name)}/{quote(object_name)}"
-                headers_copy = {
-                    "X-Auth-Token": self.token,
-                    "X-Copy-From": f"/{quote(old_container_name)}/{quote(object_name)}"
-                }
-                copy_resp = requests.put(copy_url, headers=headers_copy)
-                if copy_resp.status_code not in (201, 202):
-                    raise Exception(f"Unable to copy object: {object_name}")
-
-            # Xóa container cũ (gồm cả object)
-            self.delete_container_with_objects(old_container_name)
-
-            QMessageBox.information(self, "Success", "Folder renamed successfully")
-            self.list_containers()
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-
     def rename_object(self, row):
         old_object_name = self.table.item(row, 0).text()
         base_name, ext = os.path.splitext(old_object_name)  # 👈 Tách tên và phần mở rộng
@@ -2722,20 +2743,27 @@ class MainWindow(QWidget):
             if not container:
                 raise Exception("No folder selected")
 
-            headers = {
+            headers = {"X-Auth-Token": self.token}
+
+            # ✅ Kiểm tra object mới có tồn tại chưa
+            check_url = f"{self.storage_url}/{quote(container)}/{quote(new_name)}"
+            check_resp = requests.head(check_url, headers=headers)
+            if check_resp.status_code == 200:  # Object đã tồn tại
+                QMessageBox.warning(self, "Failure", f"A file named '{new_name}' already exists in this folder.")
+                return
+
+            # Copy object với tên mới
+            copy_headers = {
                 "X-Auth-Token": self.token,
                 "X-Copy-From": f"/{quote(container)}/{quote(old_object_name)}"
             }
-
-            # Copy object với tên mới
-            copy_url = f"{self.storage_url}/{quote(container)}/{quote(new_name)}"
-            copy_resp = requests.put(copy_url, headers=headers)
+            copy_resp = requests.put(check_url, headers=copy_headers)
             if copy_resp.status_code not in (201, 202):
                 raise Exception("Failed to copy file")
 
             # Xoá object cũ
             delete_url = f"{self.storage_url}/{quote(container)}/{quote(old_object_name)}"
-            delete_resp = requests.delete(delete_url, headers={"X-Auth-Token": self.token})
+            delete_resp = requests.delete(delete_url, headers=headers)
             if delete_resp.status_code not in (204, 404):
                 raise Exception("Failed to delete old file")
 
