@@ -111,11 +111,21 @@ class LineChartCanvas(FigureCanvas):
 
         self.figure.autofmt_xdate()
 
-        # 👇 chỉnh trục Y cố định từ 0 đến max(counts)+1
         if counts:
             self.axes.set_ylim(0, max(counts) + 1)
         else:
             self.axes.set_ylim(0, 1)
+
+        if len(sorted_minutes) == 1:
+            # chỉ có 1 mốc thời gian -> set tick thủ công
+            self.axes.set_xticks(sorted_minutes)
+            self.axes.set_xticklabels([sorted_minutes[0].strftime("%H:%M")])
+        else:
+            self.axes.xaxis.set_major_formatter(
+                mdates.DateFormatter('%H:%M', tz=ZoneInfo("Asia/Ho_Chi_Minh"))
+            )
+            self.axes.xaxis.set_major_locator(mdates.AutoDateLocator())
+            self.figure.autofmt_xdate()
 
         self.draw()
 
@@ -1000,8 +1010,7 @@ class MainWindow(QWidget):
         self.study_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.study_list.customContextMenuRequested.connect(self.show_study_context_menu)
         self.load_studies_from_orthanc()
-
-#Xử lý chung
+    #Xử lý chung
     # Scale hình nền khi thu phóng cửa sổ
     def update_background(self):
         bg_path = resource_path(os.path.join("photos", "black.jpg"))
@@ -1512,80 +1521,7 @@ class MainWindow(QWidget):
         return timestamps
 
     #Tab My file
-        #Xử lý logic
-
-    def format_size(self, size):
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if size < 1024:
-                return f"{size:.2f} {unit}"
-            size /= 1024
-        return f"{size:.2f} PB"
-
-    def filter_all_containers_and_objects(self, text):
-        keyword = text.strip().lower()
-        self.container_table.setRowCount(0)
-        self.table.setRowCount(0)
-        self.selected_container = None
-
-        if not keyword:
-            self.list_containers()
-            return
-
-        headers = {"X-Auth-Token": self.token}
-        matched_containers = []
-
-        for container in self.get_all_containers():
-            try:
-                url = f"{self.storage_url}/{container}?format=json"
-                response = requests.get(url, headers=headers)
-                if response.status_code != 200:
-                    continue
-
-                objects = response.json()
-                matched_objects = [obj for obj in objects if keyword in obj.get("name", "").lower()]
-
-                if matched_objects:
-                    # Hiển thị container nếu có object trùng
-                    total_size = sum(int(obj.get("bytes", 0)) for obj in objects)
-                    row = self.container_table.rowCount()
-                    self.container_table.insertRow(row)
-                    self.container_table.setItem(row, 0, QTableWidgetItem(container))
-                    self.container_table.setItem(row, 1, QTableWidgetItem(format_bytes(total_size)))
-                    matched_containers.append((container, matched_objects))
-
-            except Exception as e:
-                print(f"Error searching in container {container}: {e}")
-
-        # Nếu có container khớp đầu tiên → load luôn object của container đầu tiên
-        if matched_containers:
-            container_name, matched_objects = matched_containers[0]
-            self.selected_container = container_name
-            for obj in matched_objects:
-                row = self.table.rowCount()
-                self.table.insertRow(row)
-                self.table.setItem(row, 0, QTableWidgetItem(obj["name"]))
-                self.table.setItem(row, 1, QTableWidgetItem(format_bytes(int(obj.get("bytes", 0)))))
-                self.table.setItem(row, 2, QTableWidgetItem(format_datetime(obj.get("last_modified", ""))))
-
-    def get_all_containers(self):
-        return getattr(self, "containers", [])
-
-    def create_search_box(self, placeholder_text, clear_callback=None):
-        search_box = QLineEdit()
-        search_box.setPlaceholderText(placeholder_text)
-
-        clear_icon = QIcon(resource_path(os.path.join("photos", "clear.png")))
-        clear_action = QAction(clear_icon, "", search_box)
-        clear_action.setToolTip("Clear Search Input")
-        clear_action.triggered.connect(search_box.clear)
-
-        search_box.addAction(clear_action, QLineEdit.TrailingPosition)
-
-        if clear_callback:
-            search_box.textChanged.connect(clear_callback)
-
-        return search_box
-
+        #Xử lý chung
     def update_usage_display(self):
         percent = int(self.used_bytes / self.total_quota_bytes * 100)
         self.usage_bar.setValue(percent)
@@ -1776,6 +1712,63 @@ class MainWindow(QWidget):
 
         #Xử lý folder
 
+    def filter_all_containers_and_objects(self, text):
+        keyword = text.strip().lower()
+        self.container_table.setRowCount(0)
+        self.table.setRowCount(0)
+        self.selected_container = None
+
+        if not keyword:
+            self.list_containers()
+            return
+
+        headers = {"X-Auth-Token": self.token}
+        matched_containers = []
+
+        for container in self.get_all_containers():
+            try:
+                url = f"{self.storage_url}/{container}?format=json"
+                response = requests.get(url, headers=headers)
+                if response.status_code != 200:
+                    continue
+
+                objects = response.json()
+                matched_objects = [obj for obj in objects if keyword in obj.get("name", "").lower()]
+
+                if matched_objects:
+                    # Hiển thị container nếu có object trùng
+                    total_size = sum(int(obj.get("bytes", 0)) for obj in objects)
+                    row = self.container_table.rowCount()
+                    self.container_table.insertRow(row)
+                    self.container_table.setItem(row, 0, QTableWidgetItem(container))
+                    self.container_table.setItem(row, 1, QTableWidgetItem(format_bytes(total_size)))
+                    matched_containers.append((container, matched_objects))
+
+            except Exception as e:
+                print(f"Error searching in container {container}: {e}")
+
+        # Nếu có container khớp đầu tiên → load luôn object của container đầu tiên
+        if matched_containers:
+            container_name, matched_objects = matched_containers[0]
+            self.selected_container = container_name
+            for obj in matched_objects:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                self.table.setItem(row, 0, QTableWidgetItem(obj["name"]))
+                self.table.setItem(row, 1, QTableWidgetItem(format_bytes(int(obj.get("bytes", 0)))))
+                self.table.setItem(row, 2, QTableWidgetItem(format_datetime(obj.get("last_modified", ""))))
+
+    def format_size(self, size):
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size < 1024:
+                return f"{size:.2f} {unit}"
+            size /= 1024
+        return f"{size:.2f} PB"
+
+#Xử lý folder
+    def get_all_containers(self):
+        return getattr(self, "containers", [])
+
     def filter_containers(self, text):
         for row in range(self.container_table.rowCount()):
             item = self.container_table.item(row, 0)  # cột 0 là tên container
@@ -1903,24 +1896,36 @@ class MainWindow(QWidget):
         data = []
         for row in range(self.container_table.rowCount()):
             row_data = [
-                self.container_table.item(row, 0).text(),
-                self.container_table.item(row, 1).text()
+                self.container_table.item(row, 0).text() if self.container_table.item(row, 0) else "",
+                self.container_table.item(row, 1).text() if self.container_table.item(row, 1) else ""
             ]
             data.append(row_data)
+
+        import re
 
         def parse_size(size_str):
             try:
                 num, unit = size_str.split()
                 num = float(num)
-                unit_map = {"B": 1, "KB": 1024, "MB": 1024 ** 2, "GB": 1024 ** 3, "TB": 1024 ** 4}
+                unit_map = {"B": 1, "KB": 1024, "MB": 1024 ** 2,
+                            "GB": 1024 ** 3, "TB": 1024 ** 4}
                 return num * unit_map.get(unit, 1)
             except:
                 return 0
 
-        if col == 1:
-            key_func = lambda row: parse_size(row[col])
+        def natural_key(text):
+            text = text or ""
+            # Tách text thành list xen kẽ: chuỗi và số, để so sánh giống Windows Explorer
+            return [int(tok) if tok.isdigit() else tok.lower()
+                    for tok in re.split(r'(\d+)', text)]
+
+        # Chọn key theo cột
+        if col == 0:  # Folder Name
+            key_func = lambda row: natural_key(row[0])
+        elif col == 1:  # Size
+            key_func = lambda row: parse_size(row[1])
         else:
-            key_func = lambda row: row[col].lower()
+            key_func = lambda row: row[col].lower() if row[col] else ""
 
         data.sort(key=key_func, reverse=not ascending)
 
@@ -1976,7 +1981,6 @@ class MainWindow(QWidget):
             self.line_chart.plot(self.get_upload_timestamps_last_1h())
 
     def on_container_clicked(self, row, column):
-        self.list_containers()
         container_name_item = self.container_table.item(row, 0)
         if not container_name_item:
             return
@@ -2176,6 +2180,23 @@ class MainWindow(QWidget):
 
         #Xử lý file
 
+#Xử lý file
+    def create_search_box(self, placeholder_text, clear_callback=None):
+        search_box = QLineEdit()
+        search_box.setPlaceholderText(placeholder_text)
+
+        clear_icon = QIcon(resource_path(os.path.join("photos", "clear.png")))
+        clear_action = QAction(clear_icon, "", search_box)
+        clear_action.setToolTip("Clear Search Input")
+        clear_action.triggered.connect(search_box.clear)
+
+        search_box.addAction(clear_action, QLineEdit.TrailingPosition)
+
+        if clear_callback:
+            search_box.textChanged.connect(clear_callback)
+
+        return search_box
+
     def filter_objects(self, text):
         for row in range(self.table.rowCount()):
             item = self.table.item(row, 0)  # Cột 0 là tên object
@@ -2327,20 +2348,31 @@ class MainWindow(QWidget):
             worker.signals.done.connect(self.on_work_done)
             self.threadpool.start(worker)
 
+    def on_object_header_clicked(self, column_index):
+        # Toggle sort order
+        current_order = self.object_sort_state.get("ascending", True)
+        self.object_sort_state["column"] = column_index
+        self.object_sort_state["ascending"] = not current_order
+        self.sort_object_table()
+
     def sort_object_table(self):
         col = self.object_sort_state["column"]
         ascending = self.object_sort_state["ascending"]
 
         data = []
         for row in range(self.table.rowCount()):
-            row_data = [self.table.item(row, c).text() for c in range(self.table.columnCount())]
+            row_data = [
+                self.table.item(row, c).text() if self.table.item(row, c) else ""
+                for c in range(self.table.columnCount())
+            ]
             data.append(row_data)
 
         def parse_size(size_str):
             try:
                 num, unit = size_str.split()
                 num = float(num)
-                unit_map = {"B": 1, "KB": 1024, "MB": 1024 ** 2, "GB": 1024 ** 3, "TB": 1024 ** 4}
+                unit_map = {"B": 1, "KB": 1024, "MB": 1024 ** 2,
+                            "GB": 1024 ** 3, "TB": 1024 ** 4}
                 return num * unit_map.get(unit, 1)
             except:
                 return 0
@@ -2351,12 +2383,21 @@ class MainWindow(QWidget):
             except:
                 return datetime.min
 
-        if col == 1:
-            key_func = lambda row: parse_size(row[col])
-        elif col == 2:
-            key_func = lambda row: parse_datetime(row[col])
+        def natural_key(text):
+            text = text or ""
+            # Tách thành list [chuỗi, số, chuỗi, số...]
+            return [int(tok) if tok.isdigit() else tok.lower()
+                    for tok in re.split(r'(\d+)', text)]
+
+        # Chọn key theo cột
+        if col == 0:  # File Name
+            key_func = lambda row: natural_key(row[0])
+        elif col == 1:  # Size
+            key_func = lambda row: parse_size(row[1])
+        elif col == 2:  # Last Updated
+            key_func = lambda row: parse_datetime(row[2])
         else:
-            key_func = lambda row: row[col]
+            key_func = lambda row: row[col].lower() if row[col] else ""
 
         data.sort(key=key_func, reverse=not ascending)
 
@@ -2366,16 +2407,6 @@ class MainWindow(QWidget):
             self.table.insertRow(row)
             for col_idx, val in enumerate(row_data):
                 self.table.setItem(row, col_idx, QTableWidgetItem(val))
-
-    def on_object_header_clicked(self, column_index):
-        # Đảo thứ tự tăng/giảm cho cột đó
-        current_order = self.object_sort_order.get(column_index, True)
-        self.object_sort_order[column_index] = not current_order
-
-        self.object_sort_state["column"] = column_index
-        self.object_sort_state["ascending"] = current_order
-
-        self.sort_object_table()
 
     def object_context_menu(self, pos):
         selected_rows = list(set(index.row() for index in self.table.selectionModel().selectedRows()))
@@ -2714,7 +2745,7 @@ class MainWindow(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
-#Tab Backup
+    #Tab Backup
     # Hàm thực hiện backup chính
     def do_backup(self, is_now=True):
         username = self.get_current_username()
