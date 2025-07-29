@@ -85,20 +85,17 @@ class LineChartCanvas(FigureCanvas):
 
         if not timestamps:
             self.axes.text(0.5, 0.5, "No data in last 1h", ha='center', va='center')
+            self.axes.set_ylim(0, 1)  # 👈 luôn giữ trục Y từ 0
             self.draw()
             return
 
         now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
         one_hour_ago = now - timedelta(hours=1)
 
-        # Lọc timestamps trong 1h gần nhất
         recent = [dt for dt in timestamps if dt >= one_hour_ago]
-
-        # Làm tròn xuống từng phút và đếm
         minutes = [dt.replace(second=0, microsecond=0) for dt in recent]
         counter = Counter(minutes)
 
-        # Dữ liệu chỉ gồm các phút có upload
         sorted_minutes = sorted(counter.keys())
         counts = [counter[m] for m in sorted_minutes]
 
@@ -109,12 +106,20 @@ class LineChartCanvas(FigureCanvas):
         self.axes.yaxis.set_major_locator(MaxNLocator(integer=True))
         self.axes.grid(True)
 
-        # Định dạng trục X theo HH:MM
         self.axes.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=ZoneInfo("Asia/Ho_Chi_Minh")))
         self.axes.xaxis.set_major_locator(mdates.AutoDateLocator())
 
         self.figure.autofmt_xdate()
+
+        # 👇 chỉnh trục Y cố định từ 0 đến max(counts)+1
+        if counts:
+            self.axes.set_ylim(0, max(counts) + 1)
+        else:
+            self.axes.set_ylim(0, 1)
+
         self.draw()
+
+
 #Các luồng để xử lý upload,delete,download
 class UploadWorkerSignals(QObject):
     progress = pyqtSignal(int)
@@ -1319,7 +1324,12 @@ class MainWindow(QWidget):
 
         # ✅ Nếu đúng, tiếp tục chuyển user
         try:
+            from mount_manager import save_rclone_config, mount_drive, unmount_drive
+
+            # Gỡ ổ user cũ
             unmount_drive()
+
+            # Re-authenticate để lấy token & storage_url
             token, storage_url = self.re_authenticate_user(user)
             self.token = token
             self.storage_url = storage_url
@@ -1327,6 +1337,15 @@ class MainWindow(QWidget):
             self.list_containers()
             self.calculate_total_used_bytes()
 
+            # 🔐 Lưu lại config cho user mới (ghi đè rclone.sec)
+            save_rclone_config(
+                user["username"],
+                user["password"],
+                user["project_name"],
+                user["auth_url"]
+            )
+
+            # Mount lại ổ cho user mới
             mount_drive(
                 user["username"],
                 user["password"],
@@ -1335,8 +1354,8 @@ class MainWindow(QWidget):
             )
 
             # ✅ Đổi thành công → cập nhật index và UI
-            self.current_user_index = 0  # Vì sẽ load lại và đưa user mới lên đầu
-            self.load_saved_users(select_user_display=user["user_display"])  # ⬅️ Reorder UI dropdown
+            self.current_user_index = 0  # Load lại và đưa user mới lên đầu
+            self.load_saved_users(select_user_display=user["user_display"])
 
             QMessageBox.information(self, "Switch user", f"Switched to user {user['user_display']} successfully")
             self.update_backup_status_label()
@@ -1344,7 +1363,7 @@ class MainWindow(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Cannot switch: {str(e)}")
-            # Trả lại dropdown nếu lỗi
+            # Rollback dropdown nếu lỗi
             self.saved_user_dropdown.blockSignals(True)
             self.saved_user_dropdown.setCurrentIndex(self.current_user_index)
             self.saved_user_dropdown.blockSignals(False)

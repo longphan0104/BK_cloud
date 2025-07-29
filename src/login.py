@@ -8,7 +8,7 @@ from PyQt5.QtGui import QFont, QPixmap, QPalette, QBrush, QIcon
 from PyQt5.QtCore import Qt, QEvent
 
 from main import MainWindow
-from mount_manager import mount_drive
+from mount_manager import mount_drive, save_rclone_config
 from utils import resource_path
 from secure_json import secure_json_load, secure_json_dump
 import manual
@@ -300,6 +300,7 @@ class LoginWindow(QWidget):
                 if "/v1/" not in storage_url:
                     storage_url = storage_url.rstrip("/") + f"/v1/AUTH_{project_id}"
 
+                save_rclone_config(username, password, project, auth_url)
                 save_successful_login(username, password, project, auth_url)
                 mount_drive(username, password, project, auth_url)
 
