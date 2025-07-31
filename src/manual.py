@@ -109,6 +109,7 @@ HELP_TEXT = """
     <li>+ User manual: Phần hướng dẫn người dùng. </li>
     <li>+ Change DICOMweb URL: Thay đổi đường dẫn đển trang Dicomweb Orthanc tùy vào setup của người dùng </li>
     <li>+ Change User password: Dùng để thay đổi password của User hiện tại (Lưu ý: không thể đổi trùng mật khẩu với mật khẩu cũ gần nhất.)</li>
+    <li>+ Change cloud storage limit: Dùng để thay đổi limit của cloud, mặc định là 1GB </li>
 
 </ul>
 

@@ -443,7 +443,7 @@ class MainWindow(QWidget):
 
         self.viewer_window = None
 
-        self.total_quota_bytes = 0.1 * 1024 ** 3  # usage limit
+        self.total_quota_bytes = self.load_quota()
         self.used_bytes = 0
         self.container_sort_state = {"column": 0, "ascending": True}
         self.object_sort_state = {"column": 0, "ascending": True}
@@ -1042,11 +1042,13 @@ class MainWindow(QWidget):
         user_manual_radio = QRadioButton("User manual")
         change_dicom_radio = QRadioButton("Change DICOMweb URL")
         change_password_radio = QRadioButton("Change user password")
+        change_quota_radio = QRadioButton("Change cloud storage limit")
 
         user_manual_radio.setChecked(True)
         layout.addWidget(user_manual_radio)
         layout.addWidget(change_dicom_radio)
         layout.addWidget(change_password_radio)
+        layout.addWidget(change_quota_radio)
 
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         layout.addWidget(button_box)
@@ -1091,13 +1093,33 @@ class MainWindow(QWidget):
 
             elif change_dicom_radio.isChecked():
                 current_url = self.get_dicom_url()
-                new_url, ok = QInputDialog.getText(self, "Change DICOMweb URL", "Enter new DICOMweb URL:", QLineEdit.Normal, current_url)
+                new_url, ok = QInputDialog.getText(
+                    self, "Change DICOMweb URL", "Enter new DICOMweb URL:",
+                    QLineEdit.Normal, current_url
+                )
                 if ok and new_url.strip():
                     self.set_dicom_url(new_url.strip())
                     QMessageBox.information(self, "Success", "DICOM URL has been updated.")
 
             elif change_password_radio.isChecked():
                 self.show_change_password_dialog()
+
+            elif change_quota_radio.isChecked():
+                new_quota, ok = QInputDialog.getDouble(
+                    self, "Change Storage Limit",
+                    "Enter new limit in GB:", 0.1, 0.01, 1000, 2
+                )
+                if ok:
+                    try:
+                        import json
+                        with open("config.json", "w") as f:
+                            json.dump({"quota_gb": new_quota}, f, indent=4)
+                        QMessageBox.information(
+                            self, "Success",
+                            "Storage limit updated. Please restart app to apply change."
+                        )
+                    except Exception as e:
+                        QMessageBox.critical(self, "Error", str(e))
 
             dialog.accept()
 
@@ -1522,6 +1544,17 @@ class MainWindow(QWidget):
 
     #Tab My file
         #Xử lý chung
+    def load_quota(self):
+        try:
+            import json
+            if os.path.exists("config.json"):
+                with open("config.json", "r") as f:
+                    cfg = json.load(f)
+                return float(cfg.get("quota_gb", 0.1)) * 1024 ** 3
+        except Exception as e:
+            print("Error loading quota:", e)
+        return 0.1 * 1024 ** 3
+
     def update_usage_display(self):
         percent = int(self.used_bytes / self.total_quota_bytes * 100)
         self.usage_bar.setValue(percent)
