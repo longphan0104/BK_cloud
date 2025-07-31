@@ -19,3 +19,6 @@ Bước 4: Khởi động app trong phần "src" bằng cách chạy file login.
 * Người dùng có thể build app thành 1 file duy nhất bằng cách:
 
 pyinstaller --onefile --noconsole --add-data "photos;photos" --name BKcloud --icon=photos/applogo.ico login.py
+
+# BK Cloud Diagram
+![diagram.jpg](src/photos/diagram.jpg)
