@@ -1,5 +1,6 @@
 # BK Cloud
 ---- Hướng dẫn cài đặt Devstack Openstack swift trên máy ảo cho tester ----
+
 Bước 1: Tạo user stack và gán quyền cho user đó
 
 `sudo useradd -s /bin/bash -d /opt/stack -m stack`
