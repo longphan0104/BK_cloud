@@ -17,8 +17,8 @@ HELP_TEXT = """
 
 <ul style="list-style-type: none; padding-left: 20px; line-height: 1.5;">
     <li>-Người dùng cần nhập đầy đủ Username, Password và Project name để đăng nhập vào app, nếu không sẽ báo lỗi.</li>
-    <li>-Trong phần Help bao gồm 2 phần: Dùng để thay đổi đường dẫn đến sever Object storage Openstack Swift tùy vào setup của người dùng.</li>
-    <li>+ Change Swift Auth URL:Dùng để thay đổi đường dẫn đến sever Object storage Openstack Swift tùy vào setup của người dùng.</li>
+    <li>-Trong phần Help bao gồm 2 phần: Dùng để thay đổi đường dẫn đến server Object storage Openstack Swift tùy vào setup của người dùng.</li>
+    <li>+ Change Swift Auth URL:Dùng để thay đổi đường dẫn đến server Object storage Openstack Swift tùy vào setup của người dùng.</li>
     <li>+ User manual: hướng dẫn người dùng sử dụng app.</li>
 
 </ul>
