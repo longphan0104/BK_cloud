@@ -1240,7 +1240,12 @@ class MainWindow(QWidget):
 
 #Logout và Close
     # Xử lí và phân biệt giữa logout và đóng app
-    def logout(self):
+    def logout(self, skip_confirm=False):
+        if skip_confirm:
+            self.logging_out = True
+            self.perform_logout()
+            return
+
         confirm = QMessageBox.question(
             self,
             "Logout",
@@ -1248,7 +1253,7 @@ class MainWindow(QWidget):
             QMessageBox.Yes | QMessageBox.No
         )
         if confirm == QMessageBox.Yes:
-            self.logging_out = True  # 👈 Đánh dấu là đang logout
+            self.logging_out = True
             self.perform_logout()
 
     def perform_logout(self):
@@ -1460,11 +1465,19 @@ class MainWindow(QWidget):
         )
 
         if confirm == QMessageBox.Yes:
+            is_current_user = (index == self.current_user_index)
+
             del self.saved_users[index]
             secure_json_dump(self.saved_users, "saved_users.json")
             self.load_saved_users()
 
-#Tab Dashboard
+            # 👇 Nếu xóa user đang đăng nhập thì logout ngay
+            if is_current_user:
+                QMessageBox.information(self, "User deleted",
+                                        "The current user has been deleted. You will be logged out.")
+                QTimer.singleShot(4000, lambda: self.logout(skip_confirm=True))
+
+    #Tab Dashboard
     # Lấy các extension file để cập nhật vào Dashboard
     def get_file_type_sizes(self):
         result = {key: 0 for key in self.file_type_stats.keys()}
