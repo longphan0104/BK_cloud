@@ -38,6 +38,7 @@ Trong phần app đã có phần thay đổi địa chỉ này tùy vào cài đ
 ![manual1.png](src/photos/manual1.png)
 
 Người dùng bấm vào “Help” để tiến hành thay đổi.
+# Install
 
 ---- Hướng dẫn cài đặt app BK Cloud ----
 
