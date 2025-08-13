@@ -1,12 +1,18 @@
 import subprocess
 import time
 import os
+import sys
 import tempfile
 from secure_json import secure_json_load, secure_json_dump
 
 MOUNT_POINT = "Z:"
 rclone_process = None
 DETACHED_PROCESS = 0x00000008  # Windows only
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 def get_remote_name(user):
     return f"bkcloud_{user}".replace(" ", "_").lower()
@@ -34,6 +40,9 @@ def mount_drive(user, password, project, auth_url):
     global rclone_process
     unmount_drive()
 
+    # Lấy đường dẫn tới rclone.exe (trong thư mục tools)
+    rclone_exe = resource_path(os.path.join("tools", "rclone.exe"))
+
     remote_name = get_remote_name(user)
     conf_data = secure_json_load("rclone.sec")
 
@@ -48,7 +57,7 @@ def mount_drive(user, password, project, auth_url):
     try:
         rclone_process = subprocess.Popen(
             [
-                "rclone", "mount", f"{remote_name}:", MOUNT_POINT,
+                rclone_exe, "mount", f"{remote_name}:", MOUNT_POINT,
                 "--config", tmp_conf_path,
                 "--vfs-cache-mode", "full",
                 "--dir-cache-time", "1s",
