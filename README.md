@@ -64,4 +64,4 @@ Bước 4: Khởi động app trong phần "src" bằng cách chạy file login.
 
 # BK Cloud Diagram
 
-![diagram.jpg](src/photos/diagram.jpg)
+![diagram.jpg](src/photos/diagram.png)
